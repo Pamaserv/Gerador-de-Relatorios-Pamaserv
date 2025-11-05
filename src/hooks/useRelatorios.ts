@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { RelatorioManutencao } from '@/lib/types'
+import { RelatorioService } from '@/lib/relatorio-service'
 
-// Chave para localStorage
+// Chave para localStorage (fallback)
 const STORAGE_KEY = 'pamaserv_relatorios'
 
 // Mock data para demonstração inicial
@@ -11,6 +12,7 @@ const mockRelatorios: RelatorioManutencao[] = [
   {
     id: 'REL-1733097600000',
     dadosEmpresa: {
+      nomeEmpresa: 'PAMASERV',
       logo: '',
       telefone: '(11) 99999-9999',
       cnpj: '12.345.678/0001-90',
@@ -95,20 +97,18 @@ const mockRelatorios: RelatorioManutencao[] = [
   }
 ]
 
-// Função para carregar relatórios do localStorage
-const carregarRelatorios = (): RelatorioManutencao[] => {
+// Função para carregar relatórios do localStorage (fallback)
+const carregarRelatoriosLocal = (): RelatorioManutencao[] => {
   if (typeof window === 'undefined') return mockRelatorios
   
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
       const parsed = JSON.parse(stored)
-      // Converter strings de data de volta para objetos Date
       return parsed.map((rel: any) => ({
         ...rel,
         criadoEm: new Date(rel.criadoEm),
         atualizadoEm: new Date(rel.atualizadoEm),
-        // Garantir que o campo pedágio existe (para compatibilidade com dados antigos)
         calculadoraCustos: {
           ...rel.calculadoraCustos,
           custosDeslocamento: {
@@ -125,8 +125,8 @@ const carregarRelatorios = (): RelatorioManutencao[] => {
   return mockRelatorios
 }
 
-// Função para salvar relatórios no localStorage
-const salvarRelatorios = (relatorios: RelatorioManutencao[]): void => {
+// Função para salvar relatórios no localStorage (fallback)
+const salvarRelatoriosLocal = (relatorios: RelatorioManutencao[]): void => {
   if (typeof window === 'undefined') return
   
   try {
@@ -655,46 +655,83 @@ export function useRelatorios() {
   const [relatorios, setRelatorios] = useState<RelatorioManutencao[]>([])
   const [loading, setLoading] = useState(false)
   const [initialized, setInitialized] = useState(false)
+  const [useSupabase, setUseSupabase] = useState(true)
 
-  // Carregar relatórios do localStorage na inicialização
+  // Carregar relatórios na inicialização
   useEffect(() => {
-    const relatoriosCarregados = carregarRelatorios()
-    setRelatorios(relatoriosCarregados)
-    setInitialized(true)
+    const carregarDados = async () => {
+      setLoading(true)
+      try {
+        if (useSupabase) {
+          // Tentar carregar do Supabase
+          const relatoriosSupabase = await RelatorioService.buscarRelatorios()
+          setRelatorios(relatoriosSupabase)
+          console.log('Relatórios carregados do Supabase:', relatoriosSupabase.length)
+        } else {
+          // Fallback para localStorage
+          const relatoriosLocal = carregarRelatoriosLocal()
+          setRelatorios(relatoriosLocal)
+          console.log('Relatórios carregados do localStorage:', relatoriosLocal.length)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar do Supabase, usando localStorage:', error)
+        setUseSupabase(false)
+        const relatoriosLocal = carregarRelatoriosLocal()
+        setRelatorios(relatoriosLocal)
+      } finally {
+        setLoading(false)
+        setInitialized(true)
+      }
+    }
+
+    carregarDados()
   }, [])
 
-  // Salvar no localStorage sempre que os relatórios mudarem
+  // Salvar no localStorage quando não usar Supabase
   useEffect(() => {
-    if (initialized) {
-      salvarRelatorios(relatorios)
+    if (initialized && !useSupabase) {
+      salvarRelatoriosLocal(relatorios)
     }
-  }, [relatorios, initialized])
+  }, [relatorios, initialized, useSupabase])
 
   const adicionarRelatorio = async (relatorio: RelatorioManutencao): Promise<void> => {
     setLoading(true)
     
     try {
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // Garantir que o relatório tenha um ID único
       const novoRelatorio = {
         ...relatorio,
         id: relatorio.id || `REL-${Date.now()}`,
         criadoEm: new Date(),
         atualizadoEm: new Date()
       }
-      
-      setRelatorios(prev => [novoRelatorio, ...prev])
-      
-      // Feedback visual de sucesso
-      if (typeof window !== 'undefined') {
-        console.log('Relatório salvo com sucesso!', novoRelatorio.id)
+
+      if (useSupabase) {
+        // Salvar no Supabase
+        const relatorioSalvo = await RelatorioService.criarRelatorio(novoRelatorio)
+        setRelatorios(prev => [relatorioSalvo, ...prev])
+        console.log('Relatório salvo no Supabase:', relatorioSalvo.id)
+      } else {
+        // Salvar localmente
+        setRelatorios(prev => [novoRelatorio, ...prev])
+        console.log('Relatório salvo localmente:', novoRelatorio.id)
       }
       
     } catch (error) {
       console.error('Erro ao adicionar relatório:', error)
-      throw error
+      // Em caso de erro com Supabase, tentar salvar localmente
+      if (useSupabase) {
+        setUseSupabase(false)
+        const novoRelatorio = {
+          ...relatorio,
+          id: relatorio.id || `REL-${Date.now()}`,
+          criadoEm: new Date(),
+          atualizadoEm: new Date()
+        }
+        setRelatorios(prev => [novoRelatorio, ...prev])
+        console.log('Fallback: Relatório salvo localmente')
+      } else {
+        throw error
+      }
     } finally {
       setLoading(false)
     }
@@ -704,27 +741,50 @@ export function useRelatorios() {
     setLoading(true)
     
     try {
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 300))
-      
-      setRelatorios(prev => 
-        prev.map(rel => 
-          rel.id === id ? { 
-            ...rel, 
-            ...dados, 
-            atualizadoEm: new Date() 
-          } : rel
+      if (useSupabase) {
+        // Buscar relatório atual
+        const relatorioAtual = relatorios.find(r => r.id === id)
+        if (!relatorioAtual) throw new Error('Relatório não encontrado')
+        
+        const relatorioAtualizado = { ...relatorioAtual, ...dados, atualizadoEm: new Date() }
+        const relatorioSalvo = await RelatorioService.atualizarRelatorio(id, relatorioAtualizado)
+        
+        setRelatorios(prev => 
+          prev.map(rel => rel.id === id ? relatorioSalvo : rel)
         )
-      )
-      
-      // Feedback visual de sucesso
-      if (typeof window !== 'undefined') {
-        console.log('Relatório atualizado com sucesso!', id)
+        console.log('Relatório atualizado no Supabase:', id)
+      } else {
+        // Atualizar localmente
+        setRelatorios(prev => 
+          prev.map(rel => 
+            rel.id === id ? { 
+              ...rel, 
+              ...dados, 
+              atualizadoEm: new Date() 
+            } : rel
+          )
+        )
+        console.log('Relatório atualizado localmente:', id)
       }
       
     } catch (error) {
       console.error('Erro ao atualizar relatório:', error)
-      throw error
+      // Em caso de erro com Supabase, tentar atualizar localmente
+      if (useSupabase) {
+        setUseSupabase(false)
+        setRelatorios(prev => 
+          prev.map(rel => 
+            rel.id === id ? { 
+              ...rel, 
+              ...dados, 
+              atualizadoEm: new Date() 
+            } : rel
+          )
+        )
+        console.log('Fallback: Relatório atualizado localmente')
+      } else {
+        throw error
+      }
     } finally {
       setLoading(false)
     }
@@ -734,19 +794,27 @@ export function useRelatorios() {
     setLoading(true)
     
     try {
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 300))
-      
-      setRelatorios(prev => prev.filter(rel => rel.id !== id))
-      
-      // Feedback visual de sucesso
-      if (typeof window !== 'undefined') {
-        console.log('Relatório excluído com sucesso!', id)
+      if (useSupabase) {
+        // Excluir do Supabase
+        await RelatorioService.excluirRelatorio(id)
+        setRelatorios(prev => prev.filter(rel => rel.id !== id))
+        console.log('Relatório excluído do Supabase:', id)
+      } else {
+        // Excluir localmente
+        setRelatorios(prev => prev.filter(rel => rel.id !== id))
+        console.log('Relatório excluído localmente:', id)
       }
       
     } catch (error) {
       console.error('Erro ao excluir relatório:', error)
-      throw error
+      // Em caso de erro com Supabase, tentar excluir localmente
+      if (useSupabase) {
+        setUseSupabase(false)
+        setRelatorios(prev => prev.filter(rel => rel.id !== id))
+        console.log('Fallback: Relatório excluído localmente')
+      } else {
+        throw error
+      }
     } finally {
       setLoading(false)
     }
@@ -787,10 +855,7 @@ export function useRelatorios() {
       }))
       
       setRelatorios(relatoriosValidados)
-      
-      if (typeof window !== 'undefined') {
-        console.log('Relatórios importados com sucesso!')
-      }
+      console.log('Relatórios importados com sucesso!')
     } catch (error) {
       console.error('Erro ao importar relatórios:', error)
       throw new Error('Formato de dados inválido')
@@ -805,7 +870,6 @@ export function useRelatorios() {
     }
   }
 
-  // Nova funcionalidade: Visualizar relatório
   const visualizarRelatorio = (id: string): void => {
     const relatorio = buscarRelatorio(id)
     if (!relatorio) {
@@ -824,7 +888,6 @@ export function useRelatorios() {
         newWindow.focus()
         console.log('Relatório aberto em nova janela')
       } else {
-        // Fallback se popup foi bloqueado
         console.log('Popup bloqueado, usando fallback')
         const blob = new Blob([htmlContent], { type: 'text/html' })
         const url = URL.createObjectURL(blob)
@@ -840,7 +903,6 @@ export function useRelatorios() {
     }
   }
 
-  // Nova funcionalidade: Salvar/Download relatório
   const salvarRelatorio = (id: string, formato: 'html' | 'json' | 'pdf' = 'html'): void => {
     const relatorio = buscarRelatorio(id)
     if (!relatorio) {
@@ -851,7 +913,6 @@ export function useRelatorios() {
 
     try {
       if (formato === 'pdf') {
-        // Para PDF, abrir a visualização que já tem o botão de PDF
         visualizarRelatorio(id)
         return
       }
@@ -870,7 +931,6 @@ export function useRelatorios() {
         mimeType = 'application/json'
       }
 
-      // Criar e fazer download do arquivo
       const blob = new Blob([content], { type: mimeType })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
@@ -892,6 +952,7 @@ export function useRelatorios() {
     relatorios,
     loading,
     initialized,
+    useSupabase,
     adicionarRelatorio,
     atualizarRelatorio,
     excluirRelatorio,
