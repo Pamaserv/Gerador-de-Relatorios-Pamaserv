@@ -93,9 +93,7 @@ interface RelatorioManutencao {
     endereco: string
     cep: string
     telefone: string
-    email: string
     dataServico: string
-    numeroContrato: string
   }
   dadosServico: {
     status: 'Pendente' | 'Em Andamento' | 'Concluído' | 'Cancelado'
@@ -104,7 +102,6 @@ interface RelatorioManutencao {
     modeloEquipamento: string
     numeroSerie: string
     periodoGarantia: string
-    localInstalacao: string
     condicaoEquipamento: string
     prioridade: 'Baixa' | 'Média' | 'Alta' | 'Crítica'
     observacoes: string
@@ -113,19 +110,14 @@ interface RelatorioManutencao {
     desempenhoEquipamento: string
     problemasEncontrados: string
     recomendacoes: string
-    pecasSubstituidas: string
-    testesRealizados: string
-    configuracoes: string
     proximaManutencao: string
   }
   tecnicoResponsavel: {
     nome: string
-    cpf: string
     especialidade: string
     nomeEmpresa: string
     telefone: string
     email: string
-    certificacoes: string
   }
   horariosTrabalho: {
     dataServico: string
@@ -158,8 +150,6 @@ interface RelatorioManutencao {
       hospedagem: number
       alimentacao: number
       pedagio: number
-      combustivel: number
-      outros: number
     }
     tabelaPrecos: {
       id: string
@@ -192,15 +182,6 @@ interface RelatorioManutencao {
     cargoCliente: string
     dataAssinaturaCliente: string
     observacoes: string
-  }
-  avaliacaoServico: {
-    notaGeral: number
-    pontualidade: number
-    qualidadeTecnica: number
-    atendimento: number
-    limpeza: number
-    comentarios: string
-    recomendaria: boolean
   }
   criadoEm: Date
   atualizadoEm: Date
@@ -785,8 +766,7 @@ function DashboardStats({ relatorios }: { relatorios: RelatorioManutencao[] }) {
     instalacao: relatorios.filter(r => r.dadosServico.tipoManutencao === 'Instalação').length,
     valorTotal: relatorios.reduce((total, r) => total + (r.calculadoraCustos?.totais?.totalGeral || 0), 0),
     mediaValor: relatorios.length > 0 ? relatorios.reduce((total, r) => total + (r.calculadoraCustos?.totais?.totalGeral || 0), 0) / relatorios.length : 0,
-    tempoMedio: '2.5h', // Calculado baseado nos horários
-    satisfacao: 4.2 // Baseado nas avaliações
+    tempoMedio: '2.5h' // Calculado baseado nos horários
   }
 
   const percentualConcluidos = stats.total > 0 ? (stats.concluidos / stats.total) * 100 : 0
@@ -856,20 +836,10 @@ function DashboardStats({ relatorios }: { relatorios: RelatorioManutencao[] }) {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-orange-100 text-sm">Satisfação</p>
-              <div className="flex items-center">
-                <p className="text-3xl font-bold">{stats.satisfacao}</p>
-                <div className="flex ml-2">
-                  {[1,2,3,4,5].map(i => (
-                    <Star 
-                      key={i} 
-                      className={`w-4 h-4 ${i <= stats.satisfacao ? 'fill-current' : 'opacity-30'}`} 
-                    />
-                  ))}
-                </div>
-              </div>
+              <p className="text-orange-100 text-sm">Performance</p>
+              <p className="text-3xl font-bold">{stats.tempoMedio}</p>
               <p className="text-sm text-orange-100 mt-1">
-                Tempo médio: {stats.tempoMedio}
+                Tempo médio por serviço
               </p>
             </div>
             <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
@@ -962,9 +932,7 @@ export default function PamaservPage() {
       endereco: '',
       cep: '',
       telefone: '',
-      email: '',
-      dataServico: '',
-      numeroContrato: ''
+      dataServico: ''
     },
     dadosServico: {
       status: 'Pendente',
@@ -973,7 +941,6 @@ export default function PamaservPage() {
       modeloEquipamento: '',
       numeroSerie: '',
       periodoGarantia: '',
-      localInstalacao: '',
       condicaoEquipamento: '',
       prioridade: 'Média',
       observacoes: ''
@@ -982,19 +949,14 @@ export default function PamaservPage() {
       desempenhoEquipamento: '',
       problemasEncontrados: '',
       recomendacoes: '',
-      pecasSubstituidas: '',
-      testesRealizados: '',
-      configuracoes: '',
       proximaManutencao: ''
     },
     tecnicoResponsavel: {
       nome: '',
-      cpf: '',
       especialidade: '',
       nomeEmpresa: 'PAMASERV',
       telefone: '',
-      email: '',
-      certificacoes: ''
+      email: ''
     },
     horariosTrabalho: {
       dataServico: '',
@@ -1017,9 +979,7 @@ export default function PamaservPage() {
         valorPorKm: 0.75,
         hospedagem: 0,
         alimentacao: 0,
-        pedagio: 0,
-        combustivel: 0,
-        outros: 0
+        pedagio: 0
       },
       tabelaPrecos: [],
       totais: {
@@ -1043,15 +1003,6 @@ export default function PamaservPage() {
       cargoCliente: '',
       dataAssinaturaCliente: '',
       observacoes: ''
-    },
-    avaliacaoServico: {
-      notaGeral: 5,
-      pontualidade: 5,
-      qualidadeTecnica: 5,
-      atendimento: 5,
-      limpeza: 5,
-      comentarios: '',
-      recomendaria: true
     },
     criadoEm: new Date(),
     atualizadoEm: new Date(),
@@ -1308,15 +1259,14 @@ export default function PamaservPage() {
             cep: '01234-567',
             responsavelTecnico: 'João Silva'
           },
-          dadosCliente: { nomeEmpresa: '', representante: '', cargo: '', cidade: '', endereco: '', cep: '', telefone: '', email: '', dataServico: '', numeroContrato: '' },
-          dadosServico: { status: 'Pendente', tipoManutencao: 'Preventiva', motivoChamado: '', modeloEquipamento: '', numeroSerie: '', periodoGarantia: '', localInstalacao: '', condicaoEquipamento: '', prioridade: 'Média', observacoes: '' },
-          acoesRealizadas: { desempenhoEquipamento: '', problemasEncontrados: '', recomendacoes: '', pecasSubstituidas: '', testesRealizados: '', configuracoes: '', proximaManutencao: '' },
-          tecnicoResponsavel: { nome: '', cpf: '', especialidade: '', nomeEmpresa: 'PAMASERV', telefone: '', email: '', certificacoes: '' },
+          dadosCliente: { nomeEmpresa: '', representante: '', cargo: '', cidade: '', endereco: '', cep: '', telefone: '', dataServico: '' },
+          dadosServico: { status: 'Pendente', tipoManutencao: 'Preventiva', motivoChamado: '', modeloEquipamento: '', numeroSerie: '', periodoGarantia: '', condicaoEquipamento: '', prioridade: 'Média', observacoes: '' },
+          acoesRealizadas: { desempenhoEquipamento: '', problemasEncontrados: '', recomendacoes: '', proximaManutencao: '' },
+          tecnicoResponsavel: { nome: '', especialidade: '', nomeEmpresa: 'PAMASERV', telefone: '', email: '' },
           horariosTrabalho: { dataServico: '', saidaBase: '', chegadaCliente: '', inicioTrabalho: '', horarioAlmoco: '', retornoAlmoco: '', finalTrabalho: '', saidaCliente: '', chegadaBase: '', totalHoras: '', horasExtras: '', observacoesHorario: '' },
           anexoImagens: [],
-          calculadoraCustos: { custosDeslocamento: { distanciaKm: 0, valorPorKm: 0.75, hospedagem: 0, alimentacao: 0, pedagio: 0, combustivel: 0, outros: 0 }, tabelaPrecos: [], totais: { subtotal: 0, custosDeslocamento: 0, impostos: 0, desconto: 0, totalGeral: 0 }, formaPagamento: 'À vista', condicoesPagamento: '30 dias', observacoesCusto: '' },
+          calculadoraCustos: { custosDeslocamento: { distanciaKm: 0, valorPorKm: 0.75, hospedagem: 0, alimentacao: 0, pedagio: 0 }, tabelaPrecos: [], totais: { subtotal: 0, custosDeslocamento: 0, impostos: 0, desconto: 0, totalGeral: 0 }, formaPagamento: 'À vista', condicoesPagamento: '30 dias', observacoesCusto: '' },
           assinaturasDigitais: { assinaturaEmpresa: '', nomeEmpresa: '', cargoEmpresa: '', dataAssinaturaEmpresa: '', assinaturaCliente: '', nomeCliente: '', cargoCliente: '', dataAssinaturaCliente: '', observacoes: '' },
-          avaliacaoServico: { notaGeral: 5, pontualidade: 5, qualidadeTecnica: 5, atendimento: 5, limpeza: 5, comentarios: '', recomendaria: true },
           criadoEm: new Date(),
           atualizadoEm: new Date(),
           criadoPor: 'Sistema',
@@ -1450,31 +1400,6 @@ export default function PamaservPage() {
                       dadosCliente: { ...formData.dadosCliente!, telefone: e.target.value }
                     })}
                     placeholder="(11) 99999-9999"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="emailCliente">E-mail</Label>
-                  <Input
-                    id="emailCliente"
-                    type="email"
-                    value={formData.dadosCliente?.email || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      dadosCliente: { ...formData.dadosCliente!, email: e.target.value }
-                    })}
-                    placeholder="cliente@empresa.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="numeroContrato">Número do Contrato</Label>
-                  <Input
-                    id="numeroContrato"
-                    value={formData.dadosCliente?.numeroContrato || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      dadosCliente: { ...formData.dadosCliente!, numeroContrato: e.target.value }
-                    })}
-                    placeholder="CT-2024-001"
                   />
                 </div>
               </div>
@@ -1630,18 +1555,6 @@ export default function PamaservPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="localInstalacao">Local de Instalação</Label>
-                  <Input
-                    id="localInstalacao"
-                    value={formData.dadosServico?.localInstalacao || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      dadosServico: { ...formData.dadosServico!, localInstalacao: e.target.value }
-                    })}
-                    placeholder="Setor, sala, linha de produção"
-                  />
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="periodoGarantia">Período de Garantia</Label>
                   <Input
                     id="periodoGarantia"
@@ -1708,18 +1621,6 @@ export default function PamaservPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="cpfTecnico">CPF</Label>
-                  <Input
-                    id="cpfTecnico"
-                    value={formData.tecnicoResponsavel?.cpf || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      tecnicoResponsavel: { ...formData.tecnicoResponsavel!, cpf: e.target.value }
-                    })}
-                    placeholder="000.000.000-00"
-                  />
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="especialidade">Especialidade</Label>
                   <Input
                     id="especialidade"
@@ -1768,19 +1669,6 @@ export default function PamaservPage() {
                     placeholder="Nome da empresa"
                   />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="certificacoes">Certificações</Label>
-                <Textarea
-                  id="certificacoes"
-                  value={formData.tecnicoResponsavel?.certificacoes || ''}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    tecnicoResponsavel: { ...formData.tecnicoResponsavel!, certificacoes: e.target.value }
-                  })}
-                  placeholder="Liste as certificações técnicas relevantes"
-                  rows={3}
-                />
               </div>
             </CardContent>
           </Card>
@@ -1984,45 +1872,6 @@ export default function PamaservPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="pecasSubstituidas">Peças Substituídas</Label>
-                  <Textarea
-                    id="pecasSubstituidas"
-                    value={formData.acoesRealizadas?.pecasSubstituidas || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      acoesRealizadas: { ...formData.acoesRealizadas!, pecasSubstituidas: e.target.value }
-                    })}
-                    placeholder="Liste as peças que foram substituídas"
-                    rows={3}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="testesRealizados">Testes Realizados</Label>
-                  <Textarea
-                    id="testesRealizados"
-                    value={formData.acoesRealizadas?.testesRealizados || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      acoesRealizadas: { ...formData.acoesRealizadas!, testesRealizados: e.target.value }
-                    })}
-                    placeholder="Descreva os testes realizados após a manutenção"
-                    rows={3}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="configuracoes">Configurações Realizadas</Label>
-                  <Textarea
-                    id="configuracoes"
-                    value={formData.acoesRealizadas?.configuracoes || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      acoesRealizadas: { ...formData.acoesRealizadas!, configuracoes: e.target.value }
-                    })}
-                    placeholder="Configurações e ajustes realizados"
-                    rows={3}
-                  />
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="recomendacoes">Recomendações</Label>
                   <Textarea
                     id="recomendacoes"
@@ -2180,44 +2029,6 @@ export default function PamaservPage() {
                           custosDeslocamento: {
                             ...formData.calculadoraCustos!.custosDeslocamento,
                             pedagio: parseFloat(e.target.value) || 0
-                          }
-                        }
-                      })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="combustivel">Combustível</Label>
-                    <Input
-                      id="combustivel"
-                      type="number"
-                      step="0.01"
-                      value={formData.calculadoraCustos?.custosDeslocamento?.combustivel || 0}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        calculadoraCustos: {
-                          ...formData.calculadoraCustos!,
-                          custosDeslocamento: {
-                            ...formData.calculadoraCustos!.custosDeslocamento,
-                            combustivel: parseFloat(e.target.value) || 0
-                          }
-                        }
-                      })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="outros">Outros</Label>
-                    <Input
-                      id="outros"
-                      type="number"
-                      step="0.01"
-                      value={formData.calculadoraCustos?.custosDeslocamento?.outros || 0}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        calculadoraCustos: {
-                          ...formData.calculadoraCustos!,
-                          custosDeslocamento: {
-                            ...formData.calculadoraCustos!.custosDeslocamento,
-                            outros: parseFloat(e.target.value) || 0
                           }
                         }
                       })}
