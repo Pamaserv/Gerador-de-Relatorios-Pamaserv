@@ -102,7 +102,6 @@ interface RelatorioManutencao {
     modeloEquipamento: string
     numeroSerie: string
     periodoGarantia: string
-    condicaoEquipamento: string
     prioridade: 'Baixa' | 'Média' | 'Alta' | 'Crítica'
     observacoes: string
   }
@@ -618,7 +617,7 @@ function TabelaPrecos({ items, onItemsChange, custos }: {
   )
 }
 
-// Componente completo para assinatura canvas
+// Componente completo para assinatura canvas com suporte mobile OTIMIZADO
 function AssinaturaCanvas({ assinatura, onAssinaturaChange, nome, cargo, width = 400, height = 150 }: {
   assinatura: string
   onAssinaturaChange: (assinatura: string) => void
@@ -628,41 +627,64 @@ function AssinaturaCanvas({ assinatura, onAssinaturaChange, nome, cargo, width =
   height?: number
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 })
 
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // Função para obter coordenadas CORRIGIDA (funciona para mouse e touch)
+  const getCoordinates = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
-    if (!canvas) return
+    if (!canvas) return { x: 0, y: 0 }
     
     const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
     
-    setIsDrawing(true)
-    setLastPos({ x, y })
+    // Calcular a escala entre o tamanho visual e o tamanho real do canvas
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+    
+    if ('touches' in e) {
+      // Touch event
+      const touch = e.touches[0]
+      return {
+        x: (touch.clientX - rect.left) * scaleX,
+        y: (touch.clientY - rect.top) * scaleY
+      }
+    } else {
+      // Mouse event
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+      }
+    }
   }
 
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    const coords = getCoordinates(e)
+    setIsDrawing(true)
+    setLastPos(coords)
+  }
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
     if (!isDrawing) return
     
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx) return
     
-    const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    const coords = getCoordinates(e)
     
     ctx.beginPath()
     ctx.moveTo(lastPos.x, lastPos.y)
-    ctx.lineTo(x, y)
+    ctx.lineTo(coords.x, coords.y)
     ctx.strokeStyle = '#000000'
     ctx.lineWidth = 2
     ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
     ctx.stroke()
     
-    setLastPos({ x, y })
+    setLastPos(coords)
   }
 
   const stopDrawing = () => {
@@ -680,7 +702,8 @@ function AssinaturaCanvas({ assinatura, onAssinaturaChange, nome, cargo, width =
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
     if (canvas && ctx) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
       onAssinaturaChange('')
     }
   }
@@ -712,22 +735,30 @@ function AssinaturaCanvas({ assinatura, onAssinaturaChange, nome, cargo, width =
           <p className="text-sm text-gray-600">{cargo || 'Cargo não informado'}</p>
         </div>
         
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div ref={containerRef} className="border border-gray-200 rounded-lg overflow-hidden bg-white">
           <canvas
             ref={canvasRef}
             width={width}
             height={height}
-            className="cursor-crosshair bg-white block"
+            className="cursor-crosshair bg-white block w-full touch-none"
+            style={{ 
+              maxWidth: '100%',
+              height: 'auto',
+              display: 'block'
+            }}
             onMouseDown={startDrawing}
             onMouseMove={draw}
             onMouseUp={stopDrawing}
             onMouseLeave={stopDrawing}
+            onTouchStart={startDrawing}
+            onTouchMove={draw}
+            onTouchEnd={stopDrawing}
           />
         </div>
         
         <div className="flex justify-between items-center mt-4">
           <p className="text-xs text-gray-500">
-            Clique e arraste para assinar
+            Clique/toque e arraste para assinar
           </p>
           <div className="flex gap-2">
             <Button 
@@ -941,7 +972,6 @@ export default function PamaservPage() {
       modeloEquipamento: '',
       numeroSerie: '',
       periodoGarantia: '',
-      condicaoEquipamento: '',
       prioridade: 'Média',
       observacoes: ''
     },
@@ -1260,7 +1290,7 @@ export default function PamaservPage() {
             responsavelTecnico: 'João Silva'
           },
           dadosCliente: { nomeEmpresa: '', representante: '', cargo: '', cidade: '', endereco: '', cep: '', telefone: '', dataServico: '' },
-          dadosServico: { status: 'Pendente', tipoManutencao: 'Preventiva', motivoChamado: '', modeloEquipamento: '', numeroSerie: '', periodoGarantia: '', condicaoEquipamento: '', prioridade: 'Média', observacoes: '' },
+          dadosServico: { status: 'Pendente', tipoManutencao: 'Preventiva', motivoChamado: '', modeloEquipamento: '', numeroSerie: '', periodoGarantia: '', prioridade: 'Média', observacoes: '' },
           acoesRealizadas: { desempenhoEquipamento: '', problemasEncontrados: '', recomendacoes: '', proximaManutencao: '' },
           tecnicoResponsavel: { nome: '', especialidade: '', nomeEmpresa: 'PAMASERV', telefone: '', email: '' },
           horariosTrabalho: { dataServico: '', saidaBase: '', chegadaCliente: '', inicioTrabalho: '', horarioAlmoco: '', retornoAlmoco: '', finalTrabalho: '', saidaCliente: '', chegadaBase: '', totalHoras: '', horasExtras: '', observacoesHorario: '' },
@@ -1291,6 +1321,231 @@ export default function PamaservPage() {
     if (relatorio) {
       setFormData(relatorio)
       setActiveTab('preview')
+    }
+  }
+
+  // Função para gerar PDF usando jsPDF e html2canvas
+  const gerarPDF = async () => {
+    try {
+      setSaveStatus('saving')
+      setSaveMessage('Gerando PDF...')
+
+      // Importar bibliotecas dinamicamente
+      const { default: jsPDF } = await import('jspdf')
+      const { default: html2canvas } = await import('html2canvas')
+
+      // Selecionar o conteúdo da pré-visualização
+      const elemento = document.querySelector('[data-pdf-content]') as HTMLElement
+      if (!elemento) {
+        throw new Error('Conteúdo não encontrado')
+      }
+
+      // Gerar canvas do conteúdo
+      const canvas = await html2canvas(elemento, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      })
+
+      // Criar PDF
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const imgData = canvas.toDataURL('image/png')
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = pdf.internal.pageSize.getHeight()
+      const imgWidth = canvas.width
+      const imgHeight = canvas.height
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight)
+      
+      const imgX = (pdfWidth - imgWidth * ratio) / 2
+      const imgY = 0
+
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio)
+      
+      // Salvar PDF
+      const nomeArquivo = `relatorio_${formData.id || 'novo'}_${new Date().toISOString().split('T')[0]}.pdf`
+      pdf.save(nomeArquivo)
+
+      setSaveStatus('success')
+      setSaveMessage('PDF exportado com sucesso!')
+      
+      setTimeout(() => {
+        setSaveStatus('idle')
+        setSaveMessage('')
+      }, 3000)
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error)
+      setSaveStatus('error')
+      setSaveMessage('Erro ao gerar PDF. Tente novamente.')
+      
+      setTimeout(() => {
+        setSaveStatus('idle')
+        setSaveMessage('')
+      }, 3000)
+    }
+  }
+
+  // Função para imprimir
+  const imprimirRelatorio = () => {
+    try {
+      setSaveStatus('saving')
+      setSaveMessage('Preparando impressão...')
+      
+      // Criar uma nova janela com o conteúdo para impressão
+      const printWindow = window.open('', '_blank')
+      if (!printWindow) {
+        throw new Error('Não foi possível abrir janela de impressão')
+      }
+
+      const elemento = document.querySelector('[data-pdf-content]') as HTMLElement
+      if (!elemento) {
+        throw new Error('Conteúdo não encontrado')
+      }
+
+      // Copiar estilos da página atual
+      const styles = Array.from(document.styleSheets)
+        .map(styleSheet => {
+          try {
+            return Array.from(styleSheet.cssRules)
+              .map(rule => rule.cssText)
+              .join('')
+          } catch (e) {
+            return ''
+          }
+        })
+        .join('')
+
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Relatório de Manutenção</title>
+          <style>
+            ${styles}
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none !important; }
+            }
+          </style>
+        </head>
+        <body>
+          ${elemento.innerHTML}
+        </body>
+        </html>
+      `)
+      
+      printWindow.document.close()
+      printWindow.focus()
+      
+      // Aguardar carregamento e imprimir
+      setTimeout(() => {
+        printWindow.print()
+        printWindow.close()
+      }, 500)
+      
+      setSaveStatus('success')
+      setSaveMessage('Impressão iniciada!')
+      
+      setTimeout(() => {
+        setSaveStatus('idle')
+        setSaveMessage('')
+      }, 2000)
+    } catch (error) {
+      console.error('Erro ao imprimir:', error)
+      setSaveStatus('error')
+      setSaveMessage('Erro ao imprimir. Tente novamente.')
+      
+      setTimeout(() => {
+        setSaveStatus('idle')
+        setSaveMessage('')
+      }, 3000)
+    }
+  }
+
+  // Função para salvar PDF (diferente de exportar - salva localmente)
+  const salvarPDF = async () => {
+    try {
+      setSaveStatus('saving')
+      setSaveMessage('Salvando PDF...')
+
+      // Importar bibliotecas dinamicamente
+      const { default: jsPDF } = await import('jspdf')
+      const { default: html2canvas } = await import('html2canvas')
+
+      // Selecionar o conteúdo da pré-visualização
+      const elemento = document.querySelector('[data-pdf-content]') as HTMLElement
+      if (!elemento) {
+        throw new Error('Conteúdo não encontrado')
+      }
+
+      // Gerar canvas do conteúdo
+      const canvas = await html2canvas(elemento, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      })
+
+      // Criar PDF
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const imgData = canvas.toDataURL('image/png')
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = pdf.internal.pageSize.getHeight()
+      const imgWidth = canvas.width
+      const imgHeight = canvas.height
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight)
+      
+      const imgX = (pdfWidth - imgWidth * ratio) / 2
+      const imgY = 0
+
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio)
+      
+      // Salvar no localStorage (simulando salvamento local)
+      const pdfBlob = pdf.output('blob')
+      const reader = new FileReader()
+      reader.onload = () => {
+        const base64 = reader.result as string
+        const nomeArquivo = `relatorio_${formData.id || 'novo'}_${new Date().toISOString().split('T')[0]}.pdf`
+        
+        // Salvar referência no localStorage
+        const pdfsSalvos = JSON.parse(localStorage.getItem('pdfs-salvos') || '[]')
+        pdfsSalvos.push({
+          nome: nomeArquivo,
+          data: new Date().toISOString(),
+          relatorioId: formData.id,
+          conteudo: base64
+        })
+        localStorage.setItem('pdfs-salvos', JSON.stringify(pdfsSalvos))
+        
+        // Também fazer download
+        const link = document.createElement('a')
+        link.href = URL.createObjectURL(pdfBlob)
+        link.download = nomeArquivo
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        
+        setSaveStatus('success')
+        setSaveMessage('PDF salvo com sucesso!')
+        
+        setTimeout(() => {
+          setSaveStatus('idle')
+          setSaveMessage('')
+        }, 3000)
+      }
+      reader.readAsDataURL(pdfBlob)
+      
+    } catch (error) {
+      console.error('Erro ao salvar PDF:', error)
+      setSaveStatus('error')
+      setSaveMessage('Erro ao salvar PDF. Tente novamente.')
+      
+      setTimeout(() => {
+        setSaveStatus('idle')
+        setSaveMessage('')
+      }, 3000)
     }
   }
 
@@ -1450,6 +1705,83 @@ export default function PamaservPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Técnico Responsável
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nomeTecnico">Nome Completo *</Label>
+                  <Input
+                    id="nomeTecnico"
+                    value={formData.tecnicoResponsavel?.nome || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      tecnicoResponsavel: { ...formData.tecnicoResponsavel!, nome: e.target.value }
+                    })}
+                    placeholder="Nome completo do técnico"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="especialidade">Especialidade</Label>
+                  <Input
+                    id="especialidade"
+                    value={formData.tecnicoResponsavel?.especialidade || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      tecnicoResponsavel: { ...formData.tecnicoResponsavel!, especialidade: e.target.value }
+                    })}
+                    placeholder="Área de especialização"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="telefoneTecnico">Telefone</Label>
+                  <Input
+                    id="telefoneTecnico"
+                    value={formData.tecnicoResponsavel?.telefone || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      tecnicoResponsavel: { ...formData.tecnicoResponsavel!, telefone: e.target.value }
+                    })}
+                    placeholder="(11) 99999-9999"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="emailTecnico">E-mail</Label>
+                  <Input
+                    id="emailTecnico"
+                    type="email"
+                    value={formData.tecnicoResponsavel?.email || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      tecnicoResponsavel: { ...formData.tecnicoResponsavel!, email: e.target.value }
+                    })}
+                    placeholder="tecnico@pamaserv.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nomeEmpresaTecnico">Empresa</Label>
+                  <Input
+                    id="nomeEmpresaTecnico"
+                    value={formData.tecnicoResponsavel?.nomeEmpresa || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      tecnicoResponsavel: { ...formData.tecnicoResponsavel!, nomeEmpresa: e.target.value }
+                    })}
+                    placeholder="Nome da empresa"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )
+
+      case 3:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
                 <ToolIcon className="w-5 h-5" />
                 Dados do Serviço
               </CardTitle>
@@ -1579,96 +1911,6 @@ export default function PamaservPage() {
                   placeholder="Descreva o motivo do chamado"
                   rows={3}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="condicaoEquipamento">Condição do Equipamento</Label>
-                <Textarea
-                  id="condicaoEquipamento"
-                  value={formData.dadosServico?.condicaoEquipamento || ''}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    dadosServico: { ...formData.dadosServico!, condicaoEquipamento: e.target.value }
-                  })}
-                  placeholder="Estado geral do equipamento ao chegar no local"
-                  rows={2}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        )
-
-      case 3:
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="w-5 h-5" />
-                Técnico Responsável
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="nomeTecnico">Nome Completo *</Label>
-                  <Input
-                    id="nomeTecnico"
-                    value={formData.tecnicoResponsavel?.nome || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      tecnicoResponsavel: { ...formData.tecnicoResponsavel!, nome: e.target.value }
-                    })}
-                    placeholder="Nome completo do técnico"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="especialidade">Especialidade</Label>
-                  <Input
-                    id="especialidade"
-                    value={formData.tecnicoResponsavel?.especialidade || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      tecnicoResponsavel: { ...formData.tecnicoResponsavel!, especialidade: e.target.value }
-                    })}
-                    placeholder="Área de especialização"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="telefoneTecnico">Telefone</Label>
-                  <Input
-                    id="telefoneTecnico"
-                    value={formData.tecnicoResponsavel?.telefone || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      tecnicoResponsavel: { ...formData.tecnicoResponsavel!, telefone: e.target.value }
-                    })}
-                    placeholder="(11) 99999-9999"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="emailTecnico">E-mail</Label>
-                  <Input
-                    id="emailTecnico"
-                    type="email"
-                    value={formData.tecnicoResponsavel?.email || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      tecnicoResponsavel: { ...formData.tecnicoResponsavel!, email: e.target.value }
-                    })}
-                    placeholder="tecnico@pamaserv.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="nomeEmpresaTecnico">Empresa</Label>
-                  <Input
-                    id="nomeEmpresaTecnico"
-                    value={formData.tecnicoResponsavel?.nomeEmpresa || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      tecnicoResponsavel: { ...formData.tecnicoResponsavel!, nomeEmpresa: e.target.value }
-                    })}
-                    placeholder="Nome da empresa"
-                  />
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -1907,29 +2149,6 @@ export default function PamaservPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Camera className="w-5 h-5" />
-                Anexo de Imagens
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ImageUpload
-                images={formData.anexoImagens || []}
-                onImagesChange={(images) => setFormData({
-                  ...formData,
-                  anexoImagens: images
-                })}
-                maxSize={5}
-                maxImages={20}
-              />
-            </CardContent>
-          </Card>
-        )
-
-      case 7:
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
                 <Calculator className="w-5 h-5" />
                 Calculadora de Custos
               </CardTitle>
@@ -2118,6 +2337,29 @@ export default function PamaservPage() {
           </Card>
         )
 
+      case 7:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Camera className="w-5 h-5" />
+                Anexo de Imagens
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ImageUpload
+                images={formData.anexoImagens || []}
+                onImagesChange={(images) => setFormData({
+                  ...formData,
+                  anexoImagens: images
+                })}
+                maxSize={5}
+                maxImages={20}
+              />
+            </CardContent>
+          </Card>
+        )
+
       case 8:
         return (
           <Card>
@@ -2266,10 +2508,9 @@ export default function PamaservPage() {
             </div>
             <div>
               <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                PAMASERV
+                Sistema de Relatórios
               </h1>
               <p className="text-lg text-gray-600 mt-1">Sistema Completo de Relatórios de Manutenção</p>
-              <p className="text-sm text-gray-500">Versão 2.0 • Profissional</p>
             </div>
           </div>
         </div>
@@ -2491,11 +2732,11 @@ export default function PamaservPage() {
 
           {/* Formulário Multi-Step */}
           <TabsContent value="formulario" className="space-y-6">
-            {/* Progress Bar */}
+            {/* Progress Bar Harmonizada para Mobile */}
             <Card>
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
                     {formData.id && relatorios.find(r => r.id === formData.id) ? 'Editar Relatório' : 'Novo Relatório'}
                   </h2>
                   <span className="text-sm text-gray-500">
@@ -2503,15 +2744,65 @@ export default function PamaservPage() {
                   </span>
                 </div>
                 <Progress value={(currentStep / totalSteps) * 100} className="mb-4" />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>Cliente</span>
-                  <span>Serviço</span>
-                  <span>Técnico</span>
-                  <span>Horários</span>
-                  <span>Ações</span>
-                  <span>Imagens</span>
-                  <span>Custos</span>
-                  <span>Assinaturas</span>
+                
+                {/* Etapas harmonizadas para mobile */}
+                <div className="grid grid-cols-4 sm:grid-cols-8 gap-1 sm:gap-2 text-xs text-gray-500">
+                  <div className={`text-center p-1 rounded ${currentStep === 1 ? 'bg-blue-100 text-blue-700 font-medium' : ''}`}>
+                    <div className="flex flex-col items-center gap-1">
+                      <Building2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Cliente</span>
+                      <span className="sm:hidden text-[10px]">1</span>
+                    </div>
+                  </div>
+                  <div className={`text-center p-1 rounded ${currentStep === 2 ? 'bg-blue-100 text-blue-700 font-medium' : ''}`}>
+                    <div className="flex flex-col items-center gap-1">
+                      <User className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Técnico</span>
+                      <span className="sm:hidden text-[10px]">2</span>
+                    </div>
+                  </div>
+                  <div className={`text-center p-1 rounded ${currentStep === 3 ? 'bg-blue-100 text-blue-700 font-medium' : ''}`}>
+                    <div className="flex flex-col items-center gap-1">
+                      <ToolIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Serviço</span>
+                      <span className="sm:hidden text-[10px]">3</span>
+                    </div>
+                  </div>
+                  <div className={`text-center p-1 rounded ${currentStep === 4 ? 'bg-blue-100 text-blue-700 font-medium' : ''}`}>
+                    <div className="flex flex-col items-center gap-1">
+                      <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Horários</span>
+                      <span className="sm:hidden text-[10px]">4</span>
+                    </div>
+                  </div>
+                  <div className={`text-center p-1 rounded ${currentStep === 5 ? 'bg-blue-100 text-blue-700 font-medium' : ''}`}>
+                    <div className="flex flex-col items-center gap-1">
+                      <ClipboardList className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Ações</span>
+                      <span className="sm:hidden text-[10px]">5</span>
+                    </div>
+                  </div>
+                  <div className={`text-center p-1 rounded ${currentStep === 6 ? 'bg-blue-100 text-blue-700 font-medium' : ''}`}>
+                    <div className="flex flex-col items-center gap-1">
+                      <Calculator className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Custos</span>
+                      <span className="sm:hidden text-[10px]">6</span>
+                    </div>
+                  </div>
+                  <div className={`text-center p-1 rounded ${currentStep === 7 ? 'bg-blue-100 text-blue-700 font-medium' : ''}`}>
+                    <div className="flex flex-col items-center gap-1">
+                      <Camera className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Imagens</span>
+                      <span className="sm:hidden text-[10px]">7</span>
+                    </div>
+                  </div>
+                  <div className={`text-center p-1 rounded ${currentStep === 8 ? 'bg-blue-100 text-blue-700 font-medium' : ''}`}>
+                    <div className="flex flex-col items-center gap-1">
+                      <PenTool className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Assinaturas</span>
+                      <span className="sm:hidden text-[10px]">8</span>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -2584,7 +2875,7 @@ export default function PamaservPage() {
             </Card>
           </TabsContent>
 
-          {/* Pré-visualização Completa */}
+          {/* Pré-visualização Completa - CONTINUA NO PRÓXIMO BLOCO... */}
           <TabsContent value="preview" className="space-y-6">
             <Card>
               <CardHeader>
@@ -2594,18 +2885,37 @@ export default function PamaservPage() {
                     Pré-visualização do Relatório
                   </CardTitle>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => exportarRelatorio(formData.id || '', 'pdf')}>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={gerarPDF}
+                      disabled={saveStatus === 'saving'}
+                    >
                       <Download className="w-4 h-4 mr-2" />
                       Exportar PDF
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => window.print()}>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={imprimirRelatorio}
+                      disabled={saveStatus === 'saving'}
+                    >
                       <Printer className="w-4 h-4 mr-2" />
                       Imprimir
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={salvarPDF}
+                      disabled={saveStatus === 'saving'}
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      Salvar PDF
                     </Button>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-8">
+              <CardContent className="space-y-8" data-pdf-content>
                 {/* Cabeçalho do Relatório */}
                 <div className="text-center border-b pb-8">
                   <div className="flex items-center justify-center gap-4 mb-4">
@@ -2927,7 +3237,7 @@ export default function PamaservPage() {
                 <div className="text-center border-t pt-8 text-sm text-gray-500">
                   <div className="flex items-center justify-center gap-2 mb-2">
                     <Wrench className="w-4 h-4" />
-                    <span className="font-medium">PAMASERV - Sistema de Relatórios de Manutenção</span>
+                    <span className="font-medium">Sistema de Relatórios</span>
                   </div>
                   <p>Este relatório foi gerado automaticamente pelo sistema</p>
                   <p>Data de geração: {new Date().toLocaleString('pt-BR')}</p>
