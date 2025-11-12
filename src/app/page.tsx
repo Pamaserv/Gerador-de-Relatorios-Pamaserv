@@ -279,7 +279,7 @@ function ImageUpload({ images, onImagesChange, maxSize = 5, maxImages = 20 }: {
   return (
     <div className="space-y-6">
       <div 
-        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+        className={`border-2 border-dashed rounded-lg p-4 sm:p-8 text-center transition-colors ${
           dragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
         }`}
         onDragEnter={handleDrag}
@@ -303,11 +303,11 @@ function ImageUpload({ images, onImagesChange, maxSize = 5, maxImages = 20 }: {
           </div>
         ) : (
           <div className="flex flex-col items-center">
-            <Camera className="w-12 h-12 text-gray-400 mb-4" />
-            <p className="text-lg font-medium text-gray-700 mb-2">
+            <Camera className="w-8 sm:w-12 h-8 sm:h-12 text-gray-400 mb-4" />
+            <p className="text-base sm:text-lg font-medium text-gray-700 mb-2">
               Adicionar Imagens
             </p>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-xs sm:text-sm text-gray-500 mb-4">
               Arraste e solte ou clique para selecionar
             </p>
             <Button 
@@ -452,7 +452,7 @@ function TabelaPrecos({ items, onItemsChange, custos }: {
           <h3 className="text-xl font-semibold text-gray-900">Tabela de Preços</h3>
           <p className="text-sm text-gray-600">Gerencie os itens e custos do serviço</p>
         </div>
-        <Button onClick={adicionarItem} className="bg-green-600 hover:bg-green-700">
+        <Button onClick={adicionarItem} className="bg-green-600 hover:bg-green-700 w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" />
           Adicionar Item
         </Button>
@@ -461,7 +461,7 @@ function TabelaPrecos({ items, onItemsChange, custos }: {
       {items.length > 0 && (
         <div className="border rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[800px]">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="text-left p-4 font-medium text-gray-900">Descrição</th>
@@ -578,7 +578,7 @@ function TabelaPrecos({ items, onItemsChange, custos }: {
               <div className="text-sm text-gray-600">
                 <p>{items.length} item(ns) • Total de {items.reduce((total, item) => total + item.quantidade, 0)} unidades</p>
               </div>
-              <div className="text-right space-y-1">
+              <div className="text-right space-y-1 w-full sm:w-auto">
                 <div className="flex justify-between gap-8 text-sm">
                   <span>Subtotal:</span>
                   <span>R$ {subtotal.toFixed(2)}</span>
@@ -617,7 +617,7 @@ function TabelaPrecos({ items, onItemsChange, custos }: {
   )
 }
 
-// Componente completo para assinatura canvas com suporte mobile OTIMIZADO
+// Componente completo para assinatura canvas com suporte mobile CORRIGIDO
 function AssinaturaCanvas({ assinatura, onAssinaturaChange, nome, cargo, width = 400, height = 150 }: {
   assinatura: string
   onAssinaturaChange: (assinatura: string) => void
@@ -629,32 +629,34 @@ function AssinaturaCanvas({ assinatura, onAssinaturaChange, nome, cargo, width =
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
-  const [lastPos, setLastPos] = useState({ x: 0, y: 0 })
+  const [lastPoint, setLastPoint] = useState<{ x: number; y: number } | null>(null)
 
-  // Função para obter coordenadas CORRIGIDA (funciona para mouse e touch)
+  // Função para obter coordenadas corrigidas (funciona para mouse e touch)
   const getCoordinates = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
     if (!canvas) return { x: 0, y: 0 }
     
     const rect = canvas.getBoundingClientRect()
-    
-    // Calcular a escala entre o tamanho visual e o tamanho real do canvas
     const scaleX = canvas.width / rect.width
     const scaleY = canvas.height / rect.height
     
+    let clientX: number
+    let clientY: number
+    
     if ('touches' in e) {
       // Touch event
-      const touch = e.touches[0]
-      return {
-        x: (touch.clientX - rect.left) * scaleX,
-        y: (touch.clientY - rect.top) * scaleY
-      }
+      const touch = e.touches[0] || e.changedTouches[0]
+      clientX = touch.clientX
+      clientY = touch.clientY
     } else {
       // Mouse event
-      return {
-        x: (e.clientX - rect.left) * scaleX,
-        y: (e.clientY - rect.top) * scaleY
-      }
+      clientX = e.clientX
+      clientY = e.clientY
+    }
+    
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
     }
   }
 
@@ -662,12 +664,19 @@ function AssinaturaCanvas({ assinatura, onAssinaturaChange, nome, cargo, width =
     e.preventDefault()
     const coords = getCoordinates(e)
     setIsDrawing(true)
-    setLastPos(coords)
+    setLastPoint(coords)
+    
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext('2d')
+    if (!canvas || !ctx) return
+    
+    ctx.beginPath()
+    ctx.moveTo(coords.x, coords.y)
   }
 
   const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault()
-    if (!isDrawing) return
+    if (!isDrawing || !lastPoint) return
     
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
@@ -676,7 +685,7 @@ function AssinaturaCanvas({ assinatura, onAssinaturaChange, nome, cargo, width =
     const coords = getCoordinates(e)
     
     ctx.beginPath()
-    ctx.moveTo(lastPos.x, lastPos.y)
+    ctx.moveTo(lastPoint.x, lastPoint.y)
     ctx.lineTo(coords.x, coords.y)
     ctx.strokeStyle = '#000000'
     ctx.lineWidth = 2
@@ -684,12 +693,13 @@ function AssinaturaCanvas({ assinatura, onAssinaturaChange, nome, cargo, width =
     ctx.lineJoin = 'round'
     ctx.stroke()
     
-    setLastPos(coords)
+    setLastPoint(coords)
   }
 
   const stopDrawing = () => {
     if (isDrawing) {
       setIsDrawing(false)
+      setLastPoint(null)
       const canvas = canvasRef.current
       if (canvas) {
         const dataURL = canvas.toDataURL()
@@ -702,6 +712,7 @@ function AssinaturaCanvas({ assinatura, onAssinaturaChange, nome, cargo, width =
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
     if (canvas && ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
       onAssinaturaChange('')
@@ -712,7 +723,11 @@ function AssinaturaCanvas({ assinatura, onAssinaturaChange, nome, cargo, width =
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
     if (canvas && ctx) {
-      // Configurar canvas
+      // Configurar canvas com tamanho fixo
+      canvas.width = width
+      canvas.height = height
+      
+      // Fundo branco
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
       
@@ -725,7 +740,7 @@ function AssinaturaCanvas({ assinatura, onAssinaturaChange, nome, cargo, width =
         img.src = assinatura
       }
     }
-  }, [assinatura])
+  }, [assinatura, width, height])
 
   return (
     <div className="space-y-4">
@@ -740,12 +755,8 @@ function AssinaturaCanvas({ assinatura, onAssinaturaChange, nome, cargo, width =
             ref={canvasRef}
             width={width}
             height={height}
-            className="cursor-crosshair bg-white block w-full touch-none"
-            style={{ 
-              maxWidth: '100%',
-              height: 'auto',
-              display: 'block'
-            }}
+            className="cursor-crosshair block w-full touch-none"
+            style={{ maxWidth: '100%', height: 'auto' }}
             onMouseDown={startDrawing}
             onMouseMove={draw}
             onMouseUp={stopDrawing}
@@ -946,9 +957,9 @@ export default function PamaservPage() {
     dadosEmpresa: {
       nomeEmpresa: 'PAMASERV Manutenção Industrial',
       logo: '',
-      telefone: '(11) 99999-9999',
+      telefone: '(11) 98170-6611',
       cnpj: '00.000.000/0001-00',
-      email: 'contato@pamaserv.com.br',
+      email: 'service@pamatech.com.br',
       site: 'www.pamaserv.com.br',
       endereco: 'Rua Industrial, 123',
       cidade: 'São Paulo - SP',
@@ -1280,9 +1291,9 @@ export default function PamaservPage() {
           dadosEmpresa: {
             nomeEmpresa: 'PAMASERV Manutenção Industrial',
             logo: '',
-            telefone: '(11) 99999-9999',
+            telefone: '(11) 98170-6611',
             cnpj: '00.000.000/0001-00',
-            email: 'contato@pamaserv.com.br',
+            email: 'service@pamatech.com.br',
             site: 'www.pamaserv.com.br',
             endereco: 'Rua Industrial, 123',
             cidade: 'São Paulo - SP',
@@ -1324,75 +1335,12 @@ export default function PamaservPage() {
     }
   }
 
-  // Função para gerar PDF usando jsPDF e html2canvas
-  const gerarPDF = async () => {
-    try {
-      setSaveStatus('saving')
-      setSaveMessage('Gerando PDF...')
-
-      // Importar bibliotecas dinamicamente
-      const { default: jsPDF } = await import('jspdf')
-      const { default: html2canvas } = await import('html2canvas')
-
-      // Selecionar o conteúdo da pré-visualização
-      const elemento = document.querySelector('[data-pdf-content]') as HTMLElement
-      if (!elemento) {
-        throw new Error('Conteúdo não encontrado')
-      }
-
-      // Gerar canvas do conteúdo
-      const canvas = await html2canvas(elemento, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff'
-      })
-
-      // Criar PDF
-      const pdf = new jsPDF('p', 'mm', 'a4')
-      const imgData = canvas.toDataURL('image/png')
-      
-      const pdfWidth = pdf.internal.pageSize.getWidth()
-      const pdfHeight = pdf.internal.pageSize.getHeight()
-      const imgWidth = canvas.width
-      const imgHeight = canvas.height
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight)
-      
-      const imgX = (pdfWidth - imgWidth * ratio) / 2
-      const imgY = 0
-
-      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio)
-      
-      // Salvar PDF
-      const nomeArquivo = `relatorio_${formData.id || 'novo'}_${new Date().toISOString().split('T')[0]}.pdf`
-      pdf.save(nomeArquivo)
-
-      setSaveStatus('success')
-      setSaveMessage('PDF exportado com sucesso!')
-      
-      setTimeout(() => {
-        setSaveStatus('idle')
-        setSaveMessage('')
-      }, 3000)
-    } catch (error) {
-      console.error('Erro ao gerar PDF:', error)
-      setSaveStatus('error')
-      setSaveMessage('Erro ao gerar PDF. Tente novamente.')
-      
-      setTimeout(() => {
-        setSaveStatus('idle')
-        setSaveMessage('')
-      }, 3000)
-    }
-  }
-
-  // Função para imprimir
+  // Função para imprimir com estilos otimizados para impressão - COM CORES DA VERSÃO ANTERIOR
   const imprimirRelatorio = () => {
     try {
       setSaveStatus('saving')
       setSaveMessage('Preparando impressão...')
       
-      // Criar uma nova janela com o conteúdo para impressão
       const printWindow = window.open('', '_blank')
       if (!printWindow) {
         throw new Error('Não foi possível abrir janela de impressão')
@@ -1403,31 +1351,330 @@ export default function PamaservPage() {
         throw new Error('Conteúdo não encontrado')
       }
 
-      // Copiar estilos da página atual
-      const styles = Array.from(document.styleSheets)
-        .map(styleSheet => {
-          try {
-            return Array.from(styleSheet.cssRules)
-              .map(rule => rule.cssText)
-              .join('')
-          } catch (e) {
-            return ''
+      // Estilos otimizados para impressão COM CORES
+      const printStyles = `
+        <style>
+          @media print {
+            @page {
+              size: A4;
+              margin: 15mm;
+            }
+            
+            body {
+              margin: 0;
+              padding: 0;
+              font-family: Arial, sans-serif;
+              font-size: 11pt;
+              line-height: 1.4;
+              color: #000;
+            }
+            
+            * {
+              box-sizing: border-box;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            
+            /* Otimizar espaçamento */
+            h1, h2, h3, h4, h5, h6 {
+              margin: 8pt 0 4pt 0;
+              page-break-after: avoid;
+            }
+            
+            p {
+              margin: 4pt 0;
+              orphans: 3;
+              widows: 3;
+            }
+            
+            /* Cards e containers */
+            .space-y-8 > * + * {
+              margin-top: 12pt !important;
+            }
+            
+            .space-y-6 > * + * {
+              margin-top: 8pt !important;
+            }
+            
+            .space-y-4 > * + * {
+              margin-top: 6pt !important;
+            }
+            
+            .space-y-3 > * + * {
+              margin-top: 4pt !important;
+            }
+            
+            /* Grids responsivos */
+            .grid {
+              display: grid;
+              gap: 8pt;
+            }
+            
+            .grid-cols-1 {
+              grid-template-columns: 1fr;
+            }
+            
+            .grid-cols-2 {
+              grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .md\\:grid-cols-2 {
+              grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .md\\:grid-cols-3 {
+              grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .md\\:grid-cols-4 {
+              grid-template-columns: repeat(4, 1fr);
+            }
+            
+            /* Tabelas */
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 9pt;
+              margin: 6pt 0;
+            }
+            
+            th, td {
+              padding: 4pt 6pt;
+              border: 1px solid #ddd;
+              text-align: left;
+            }
+            
+            th {
+              background-color: #f5f5f5 !important;
+              font-weight: bold;
+            }
+            
+            /* Imagens */
+            img {
+              max-width: 100%;
+              height: auto;
+              page-break-inside: avoid;
+            }
+            
+            /* Gradientes e cores - MANTÉM AS CORES */
+            .bg-gradient-to-r {
+              background: linear-gradient(to right, var(--tw-gradient-stops)) !important;
+            }
+            
+            .from-blue-600 {
+              --tw-gradient-from: #2563eb !important;
+              --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(37, 99, 235, 0)) !important;
+            }
+            
+            .to-indigo-600 {
+              --tw-gradient-to: #4f46e5 !important;
+            }
+            
+            .from-blue-500 {
+              --tw-gradient-from: #3b82f6 !important;
+              --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(59, 130, 246, 0)) !important;
+            }
+            
+            .to-blue-600 {
+              --tw-gradient-to: #2563eb !important;
+            }
+            
+            /* Badges e elementos decorativos - MANTÉM AS CORES */
+            .bg-green-500 {
+              background-color: #22c55e !important;
+            }
+            
+            .bg-blue-500 {
+              background-color: #3b82f6 !important;
+            }
+            
+            .bg-yellow-500 {
+              background-color: #eab308 !important;
+            }
+            
+            .bg-red-500 {
+              background-color: #ef4444 !important;
+            }
+            
+            .bg-orange-500 {
+              background-color: #f97316 !important;
+            }
+            
+            .bg-purple-500 {
+              background-color: #a855f7 !important;
+            }
+            
+            .text-white {
+              color: #ffffff !important;
+            }
+            
+            /* Bordas e separadores */
+            .border {
+              border: 1px solid #ddd;
+            }
+            
+            .border-t {
+              border-top: 1px solid #ddd;
+            }
+            
+            .border-b {
+              border-bottom: 1px solid #ddd;
+            }
+            
+            .border-l-4 {
+              border-left: 4px solid;
+            }
+            
+            .border-l-blue-500 {
+              border-left-color: #3b82f6 !important;
+            }
+            
+            .border-l-green-500 {
+              border-left-color: #22c55e !important;
+            }
+            
+            .border-l-orange-500 {
+              border-left-color: #f97316 !important;
+            }
+            
+            .border-l-purple-500 {
+              border-left-color: #a855f7 !important;
+            }
+            
+            .border-l-cyan-500 {
+              border-left-color: #06b6d4 !important;
+            }
+            
+            .border-l-pink-500 {
+              border-left-color: #ec4899 !important;
+            }
+            
+            .border-l-emerald-500 {
+              border-left-color: #10b981 !important;
+            }
+            
+            .border-l-indigo-500 {
+              border-left-color: #6366f1 !important;
+            }
+            
+            /* Padding e margin otimizados */
+            .p-4, .p-6, .p-8 {
+              padding: 6pt !important;
+            }
+            
+            .pt-8, .pb-8 {
+              padding-top: 8pt !important;
+              padding-bottom: 8pt !important;
+            }
+            
+            .mb-4, .mb-6, .mb-8 {
+              margin-bottom: 6pt !important;
+            }
+            
+            .mt-4, .mt-6, .mt-8 {
+              margin-top: 6pt !important;
+            }
+            
+            /* Quebras de página */
+            .page-break-before {
+              page-break-before: always;
+            }
+            
+            .page-break-after {
+              page-break-after: always;
+            }
+            
+            .page-break-inside-avoid {
+              page-break-inside: avoid;
+            }
+            
+            /* Ocultar elementos desnecessários */
+            .no-print,
+            button,
+            .hover\\:shadow-md,
+            .transition-all {
+              display: none !important;
+            }
+            
+            /* Cores para impressão - MANTÉM AS CORES */
+            .text-blue-600,
+            .text-blue-700,
+            .text-blue-900 {
+              color: #1e40af !important;
+            }
+            
+            .text-green-600,
+            .text-green-700 {
+              color: #059669 !important;
+            }
+            
+            .text-red-600,
+            .text-red-700 {
+              color: #dc2626 !important;
+            }
+            
+            .text-gray-500,
+            .text-gray-600,
+            .text-gray-700 {
+              color: #4b5563 !important;
+            }
+            
+            .text-gray-900 {
+              color: #111827 !important;
+            }
+            
+            /* Backgrounds para impressão - MANTÉM AS CORES */
+            .bg-gray-50 {
+              background-color: #f9fafb !important;
+            }
+            
+            .bg-blue-50 {
+              background-color: #eff6ff !important;
+            }
+            
+            .bg-green-50 {
+              background-color: #f0fdf4 !important;
+            }
+            
+            .bg-white {
+              background-color: #ffffff !important;
+            }
+            
+            /* Sombras - mantém suaves */
+            .shadow-lg {
+              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+            }
+            
+            /* Assinaturas */
+            canvas {
+              border: 1px solid #ddd;
+              max-width: 100%;
+              height: auto;
+            }
+            
+            /* Rounded corners */
+            .rounded-lg {
+              border-radius: 8px;
+            }
+            
+            .rounded-xl {
+              border-radius: 12px;
+            }
+            
+            .rounded-2xl {
+              border-radius: 16px;
+            }
           }
-        })
-        .join('')
+        </style>
+      `
 
       printWindow.document.write(`
         <!DOCTYPE html>
         <html>
         <head>
-          <title>Relatório de Manutenção</title>
-          <style>
-            ${styles}
-            @media print {
-              body { margin: 0; }
-              .no-print { display: none !important; }
-            }
-          </style>
+          <meta charset="UTF-8">
+          <title>Relatório de Manutenção - ${formData.id}</title>
+          ${printStyles}
         </head>
         <body>
           ${elemento.innerHTML}
@@ -1438,7 +1685,6 @@ export default function PamaservPage() {
       printWindow.document.close()
       printWindow.focus()
       
-      // Aguardar carregamento e imprimir
       setTimeout(() => {
         printWindow.print()
         printWindow.close()
@@ -1461,115 +1707,6 @@ export default function PamaservPage() {
         setSaveMessage('')
       }, 3000)
     }
-  }
-
-  // Função para salvar PDF (diferente de exportar - salva localmente)
-  const salvarPDF = async () => {
-    try {
-      setSaveStatus('saving')
-      setSaveMessage('Salvando PDF...')
-
-      // Importar bibliotecas dinamicamente
-      const { default: jsPDF } = await import('jspdf')
-      const { default: html2canvas } = await import('html2canvas')
-
-      // Selecionar o conteúdo da pré-visualização
-      const elemento = document.querySelector('[data-pdf-content]') as HTMLElement
-      if (!elemento) {
-        throw new Error('Conteúdo não encontrado')
-      }
-
-      // Gerar canvas do conteúdo
-      const canvas = await html2canvas(elemento, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff'
-      })
-
-      // Criar PDF
-      const pdf = new jsPDF('p', 'mm', 'a4')
-      const imgData = canvas.toDataURL('image/png')
-      
-      const pdfWidth = pdf.internal.pageSize.getWidth()
-      const pdfHeight = pdf.internal.pageSize.getHeight()
-      const imgWidth = canvas.width
-      const imgHeight = canvas.height
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight)
-      
-      const imgX = (pdfWidth - imgWidth * ratio) / 2
-      const imgY = 0
-
-      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio)
-      
-      // Salvar no localStorage (simulando salvamento local)
-      const pdfBlob = pdf.output('blob')
-      const reader = new FileReader()
-      reader.onload = () => {
-        const base64 = reader.result as string
-        const nomeArquivo = `relatorio_${formData.id || 'novo'}_${new Date().toISOString().split('T')[0]}.pdf`
-        
-        // Salvar referência no localStorage
-        const pdfsSalvos = JSON.parse(localStorage.getItem('pdfs-salvos') || '[]')
-        pdfsSalvos.push({
-          nome: nomeArquivo,
-          data: new Date().toISOString(),
-          relatorioId: formData.id,
-          conteudo: base64
-        })
-        localStorage.setItem('pdfs-salvos', JSON.stringify(pdfsSalvos))
-        
-        // Também fazer download
-        const link = document.createElement('a')
-        link.href = URL.createObjectURL(pdfBlob)
-        link.download = nomeArquivo
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        
-        setSaveStatus('success')
-        setSaveMessage('PDF salvo com sucesso!')
-        
-        setTimeout(() => {
-          setSaveStatus('idle')
-          setSaveMessage('')
-        }, 3000)
-      }
-      reader.readAsDataURL(pdfBlob)
-      
-    } catch (error) {
-      console.error('Erro ao salvar PDF:', error)
-      setSaveStatus('error')
-      setSaveMessage('Erro ao salvar PDF. Tente novamente.')
-      
-      setTimeout(() => {
-        setSaveStatus('idle')
-        setSaveMessage('')
-      }, 3000)
-    }
-  }
-
-  const exportarRelatorio = (id: string, formato: 'pdf' | 'html' | 'json') => {
-    const relatorio = relatorios.find(r => r.id === id)
-    if (!relatorio) return
-
-    setSaveStatus('success')
-    setSaveMessage(`Exportação ${formato.toUpperCase()} iniciada!`)
-    
-    // Simular download
-    setTimeout(() => {
-      const dataStr = JSON.stringify(relatorio, null, 2)
-      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr)
-      const exportFileDefaultName = `relatorio_${relatorio.id}_${formato}.json`
-      
-      const linkElement = document.createElement('a')
-      linkElement.setAttribute('href', dataUri)
-      linkElement.setAttribute('download', exportFileDefaultName)
-      linkElement.click()
-      
-      setSaveStatus('idle')
-      setSaveMessage('')
-    }, 1000)
   }
 
   const duplicarRelatorio = (id: string) => {
@@ -2499,25 +2636,25 @@ export default function PamaservPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
+      <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 max-w-7xl">
         {/* Header Aprimorado */}
-        <div className="mb-8 text-center">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Wrench className="w-8 h-8 text-white" />
+        <div className="mb-6 sm:mb-8 text-center">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <Wrench className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                 Sistema de Relatórios
               </h1>
-              <p className="text-lg text-gray-600 mt-1">Sistema Completo de Relatórios de Manutenção</p>
+              <p className="text-sm sm:text-base lg:text-lg text-gray-600 mt-1">Sistema Completo de Relatórios de Manutenção</p>
             </div>
           </div>
         </div>
 
         {/* Status de Salvamento Global */}
         {saveStatus !== 'idle' && (
-          <Alert className={`mb-6 ${
+          <Alert className={`mb-4 sm:mb-6 ${
             saveStatus === 'success' ? 'border-green-200 bg-green-50' :
             saveStatus === 'error' ? 'border-red-200 bg-red-50' :
             'border-blue-200 bg-blue-50'
@@ -2526,7 +2663,7 @@ export default function PamaservPage() {
               {saveStatus === 'saving' && <Loader2 className="w-5 h-5 animate-spin" />}
               {saveStatus === 'success' && <CheckCircle className="w-5 h-5 text-green-600" />}
               {saveStatus === 'error' && <AlertCircle className="w-5 h-5 text-red-600" />}
-              <AlertDescription className={`${
+              <AlertDescription className={`text-sm ${
                 saveStatus === 'success' ? 'text-green-800' :
                 saveStatus === 'error' ? 'text-red-800' :
                 'text-blue-800'
@@ -2576,24 +2713,24 @@ export default function PamaservPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           {/* TabsList Aprimorado */}
           <div className="w-full overflow-x-auto">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 min-w-[700px] sm:min-w-full h-14">
-              <TabsTrigger value="dashboard" className="flex items-center gap-2 text-sm px-4">
-                <Home className="w-4 h-4" />
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 min-w-[700px] sm:min-w-full h-auto sm:h-14">
+              <TabsTrigger value="dashboard" className="flex items-center gap-2 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-3">
+                <Home className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Dashboard</span>
                 <span className="sm:hidden">Home</span>
               </TabsTrigger>
-              <TabsTrigger value="formulario" className="flex items-center gap-2 text-sm px-4">
-                <Plus className="w-4 h-4" />
+              <TabsTrigger value="formulario" className="flex items-center gap-2 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-3">
+                <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Novo Relatório</span>
                 <span className="sm:hidden">Novo</span>
               </TabsTrigger>
-              <TabsTrigger value="preview" className="flex items-center gap-2 text-sm px-4">
-                <Eye className="w-4 h-4" />
+              <TabsTrigger value="preview" className="flex items-center gap-2 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-3">
+                <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Pré-visualização</span>
                 <span className="sm:hidden">Preview</span>
               </TabsTrigger>
-              <TabsTrigger value="relatorios" className="flex items-center gap-2 text-sm px-4">
-                <FileBarChart className="w-4 h-4" />
+              <TabsTrigger value="relatorios" className="flex items-center gap-2 text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-3">
+                <FileBarChart className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Relatórios</span>
                 <span className="sm:hidden">Lista</span>
               </TabsTrigger>
@@ -2609,15 +2746,15 @@ export default function PamaservPage() {
               <CardHeader>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
-                    <CardTitle className="flex items-center gap-2 text-xl">
+                    <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                       <Activity className="w-5 h-5" />
                       Relatórios Recentes
                     </CardTitle>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-xs sm:text-sm text-gray-600 mt-1">
                       Últimos relatórios criados e atualizados
                     </p>
                   </div>
-                  <Button onClick={handleNovoRelatorio} className="bg-gradient-to-r from-blue-600 to-indigo-600">
+                  <Button onClick={handleNovoRelatorio} className="bg-gradient-to-r from-blue-600 to-indigo-600 w-full sm:w-auto">
                     <Plus className="w-4 h-4 mr-2" />
                     Novo Relatório
                   </Button>
@@ -2628,29 +2765,29 @@ export default function PamaservPage() {
                   {relatorios.slice(0, 8).map((relatorio) => (
                     <div key={relatorio.id} className="flex flex-col lg:flex-row lg:items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-100 hover:shadow-md transition-all duration-200 gap-4">
                       <div className="flex items-center gap-4 min-w-0 flex-1">
-                        <div className={`w-4 h-4 rounded-full ${getStatusColor(relatorio.dadosServico.status)} shadow-sm`} />
+                        <div className={`w-4 h-4 rounded-full ${getStatusColor(relatorio.dadosServico.status)} shadow-sm flex-shrink-0`} />
                         <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold text-gray-900 truncate text-lg">
+                          <h3 className="font-semibold text-gray-900 truncate text-base sm:text-lg">
                             {relatorio.dadosCliente.nomeEmpresa}
                           </h3>
-                          <p className="text-gray-600 truncate">
+                          <p className="text-sm text-gray-600 truncate">
                             {relatorio.dadosServico.modeloEquipamento}
                           </p>
-                          <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-gray-500">
                             <span className="flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
                               {relatorio.dadosCliente.dataServico}
                             </span>
                             <span className="flex items-center gap-1">
                               <User className="w-3 h-3" />
-                              {relatorio.tecnicoResponsavel.nome}
+                              <span className="truncate max-w-[150px]">{relatorio.tecnicoResponsavel.nome}</span>
                             </span>
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center justify-between lg:justify-end gap-4">
                         <div className="text-right">
-                          <Badge className={`${getStatusColor(relatorio.dadosServico.status)} text-white border-0 mb-2`}>
+                          <Badge className={`${getStatusColor(relatorio.dadosServico.status)} text-white border-0 mb-2 text-xs`}>
                             {relatorio.dadosServico.status}
                           </Badge>
                           <div className="flex items-center gap-2">
@@ -2690,10 +2827,6 @@ export default function PamaservPage() {
                                 <Copy className="w-4 h-4 mr-2" />
                                 Duplicar
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => exportarRelatorio(relatorio.id, 'pdf')}>
-                                <Download className="w-4 h-4 mr-2" />
-                                Exportar PDF
-                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
                                 onClick={() => setRelatorioParaExcluir(relatorio.id)}
@@ -2709,14 +2842,14 @@ export default function PamaservPage() {
                     </div>
                   ))}
                   {relatorios.length === 0 && (
-                    <div className="text-center py-16">
-                      <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <FileSignature className="w-12 h-12 text-gray-400" />
+                    <div className="text-center py-12 sm:py-16">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                        <FileSignature className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" />
                       </div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                      <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
                         Nenhum relatório encontrado
                       </h3>
-                      <p className="text-gray-600 mb-8">
+                      <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">
                         Comece criando seu primeiro relatório de manutenção
                       </p>
                       <Button onClick={handleNovoRelatorio} size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600">
@@ -2736,10 +2869,10 @@ export default function PamaservPage() {
             <Card>
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+                  <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-900">
                     {formData.id && relatorios.find(r => r.id === formData.id) ? 'Editar Relatório' : 'Novo Relatório'}
                   </h2>
-                  <span className="text-sm text-gray-500">
+                  <span className="text-xs sm:text-sm text-gray-500">
                     Etapa {currentStep} de {totalSteps}
                   </span>
                 </div>
@@ -2812,12 +2945,13 @@ export default function PamaservPage() {
 
             {/* Navigation Buttons */}
             <Card>
-              <CardContent className="p-6">
-                <div className="flex flex-col sm:flex-row justify-between gap-4">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-4">
                   <div className="flex gap-3">
                     <Button 
                       variant="outline" 
                       onClick={() => setActiveTab('dashboard')}
+                      className="flex-1 sm:flex-none"
                     >
                       <X className="w-4 h-4 mr-2" />
                       Cancelar
@@ -2826,6 +2960,7 @@ export default function PamaservPage() {
                       <Button 
                         variant="outline"
                         onClick={() => setCurrentStep(currentStep - 1)}
+                        className="flex-1 sm:flex-none"
                       >
                         Anterior
                       </Button>
@@ -2836,16 +2971,17 @@ export default function PamaservPage() {
                     <Button 
                       variant="outline"
                       onClick={() => setActiveTab('preview')}
-                      className="bg-blue-50 hover:bg-blue-100 border-blue-300"
+                      className="bg-blue-50 hover:bg-blue-100 border-blue-300 flex-1 sm:flex-none"
                     >
                       <Eye className="w-4 h-4 mr-2" />
-                      Pré-visualizar
+                      <span className="hidden sm:inline">Pré-visualizar</span>
+                      <span className="sm:hidden">Preview</span>
                     </Button>
                     
                     {currentStep < totalSteps ? (
                       <Button 
                         onClick={() => setCurrentStep(currentStep + 1)}
-                        className="bg-gradient-to-r from-blue-600 to-indigo-600"
+                        className="bg-gradient-to-r from-blue-600 to-indigo-600 flex-1 sm:flex-none"
                       >
                         Próximo
                         <ChevronDown className="w-4 h-4 ml-2 rotate-[-90deg]" />
@@ -2854,7 +2990,7 @@ export default function PamaservPage() {
                       <Button 
                         onClick={handleSalvarRelatorio} 
                         disabled={saveStatus === 'saving'}
-                        className="bg-gradient-to-r from-green-600 to-emerald-600"
+                        className="bg-gradient-to-r from-green-600 to-emerald-600 flex-1 sm:flex-none"
                       >
                         {saveStatus === 'saving' ? (
                           <>
@@ -2864,7 +3000,7 @@ export default function PamaservPage() {
                         ) : (
                           <>
                             <Save className="w-4 h-4 mr-2" />
-                            Salvar Relatório
+                            Salvar
                           </>
                         )}
                       </Button>
@@ -2875,42 +3011,25 @@ export default function PamaservPage() {
             </Card>
           </TabsContent>
 
-          {/* Pré-visualização Completa - CONTINUA NO PRÓXIMO BLOCO... */}
+          {/* Pré-visualização Completa */}
           <TabsContent value="preview" className="space-y-6">
             <Card>
               <CardHeader>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <CardTitle className="flex items-center gap-2 text-xl">
+                  <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                     <FileText className="w-5 h-5" />
                     Pré-visualização do Relatório
                   </CardTitle>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={gerarPDF}
-                      disabled={saveStatus === 'saving'}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Exportar PDF
-                    </Button>
+                  <div className="flex gap-2 w-full sm:w-auto">
                     <Button 
                       variant="outline" 
                       size="sm" 
                       onClick={imprimirRelatorio}
                       disabled={saveStatus === 'saving'}
+                      className="flex-1 sm:flex-none"
                     >
                       <Printer className="w-4 h-4 mr-2" />
                       Imprimir
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={salvarPDF}
-                      disabled={saveStatus === 'saving'}
-                    >
-                      <Save className="w-4 h-4 mr-2" />
-                      Salvar PDF
                     </Button>
                   </div>
                 </div>
@@ -2919,12 +3038,12 @@ export default function PamaservPage() {
                 {/* Cabeçalho do Relatório */}
                 <div className="text-center border-b pb-8">
                   <div className="flex items-center justify-center gap-4 mb-4">
-                    <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-                      <Wrench className="w-8 h-8 text-white" />
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
+                      <Wrench className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                     </div>
                     <div>
-                      <h1 className="text-3xl font-bold text-gray-900">RELATÓRIO DE MANUTENÇÃO</h1>
-                      <p className="text-lg text-gray-600">{formData.dadosEmpresa?.nomeEmpresa}</p>
+                      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">PAMASERV</h1>
+                      <p className="text-base sm:text-lg text-gray-600">Relatório de Manutenção</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
@@ -3139,7 +3258,7 @@ export default function PamaservPage() {
                     <CardContent>
                       <div className="space-y-4">
                         <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
+                          <table className="w-full text-sm min-w-[500px]">
                             <thead>
                               <tr className="border-b">
                                 <th className="text-left p-2">Item</th>
@@ -3241,9 +3360,9 @@ export default function PamaservPage() {
                   </div>
                   <p>Este relatório foi gerado automaticamente pelo sistema</p>
                   <p>Data de geração: {new Date().toLocaleString('pt-BR')}</p>
-                  <div className="flex items-center justify-center gap-4 mt-4 text-xs">
-                    <span>📧 {formData.dadosEmpresa?.email}</span>
-                    <span>📞 {formData.dadosEmpresa?.telefone}</span>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mt-4 text-xs">
+                    <span>📧 service@pamatech.com.br</span>
+                    <span>📞 (11) 98170-6611</span>
                     <span>🌐 {formData.dadosEmpresa?.site}</span>
                   </div>
                 </div>
@@ -3257,15 +3376,15 @@ export default function PamaservPage() {
               <CardHeader>
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                   <div>
-                    <CardTitle className="flex items-center gap-2 text-xl">
+                    <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                       <FileBarChart className="w-5 h-5" />
                       Todos os Relatórios ({filteredRelatorios.length})
                     </CardTitle>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-xs sm:text-sm text-gray-600 mt-1">
                       Gerencie todos os relatórios de manutenção
                     </p>
                   </div>
-                  <Button onClick={handleNovoRelatorio} className="bg-gradient-to-r from-blue-600 to-indigo-600">
+                  <Button onClick={handleNovoRelatorio} className="bg-gradient-to-r from-blue-600 to-indigo-600 w-full lg:w-auto">
                     <Plus className="w-4 h-4 mr-2" />
                     Novo Relatório
                   </Button>
@@ -3330,43 +3449,43 @@ export default function PamaservPage() {
                 <div className="space-y-4">
                   {filteredRelatorios.map((relatorio) => (
                     <Card key={relatorio.id} className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500">
-                      <CardContent className="p-6">
-                        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+                      <CardContent className="p-4 sm:p-6">
+                        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6">
                           <div className="flex items-start gap-4 min-w-0 flex-1">
                             <div className={`w-4 h-4 rounded-full ${getStatusColor(relatorio.dadosServico.status)} mt-1 flex-shrink-0`} />
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 mb-3">
-                                <h3 className="text-xl font-semibold text-gray-900 truncate">
+                                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
                                   {relatorio.dadosCliente.nomeEmpresa}
                                 </h3>
-                                <div className="flex items-center gap-2">
-                                  <Badge className={`${getStatusColor(relatorio.dadosServico.status)} text-white border-0`}>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Badge className={`${getStatusColor(relatorio.dadosServico.status)} text-white border-0 text-xs`}>
                                     {relatorio.dadosServico.status}
                                   </Badge>
-                                  <Badge variant="outline">
+                                  <Badge variant="outline" className="text-xs">
                                     {relatorio.dadosServico.tipoManutencao}
                                   </Badge>
-                                  <Badge className={`${getPriorityColor(relatorio.dadosServico.prioridade)} text-white border-0`}>
+                                  <Badge className={`${getPriorityColor(relatorio.dadosServico.prioridade)} text-white border-0 text-xs`}>
                                     {relatorio.dadosServico.prioridade}
                                   </Badge>
                                 </div>
                               </div>
                               
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
                                 <div className="flex items-center gap-2">
-                                  <ToolIcon className="w-4 h-4 text-gray-400" />
+                                  <ToolIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
                                   <span className="truncate">{relatorio.dadosServico.modeloEquipamento}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <User className="w-4 h-4 text-gray-400" />
+                                  <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
                                   <span className="truncate">{relatorio.tecnicoResponsavel.nome}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <Calendar className="w-4 h-4 text-gray-400" />
+                                  <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
                                   <span>{relatorio.dadosCliente.dataServico}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <DollarSign className="w-4 h-4 text-gray-400" />
+                                  <DollarSign className="w-4 h-4 text-gray-400 flex-shrink-0" />
                                   <span className="font-medium text-green-600">
                                     R$ {(relatorio.calculadoraCustos?.totais?.totalGeral || 0).toFixed(2)}
                                   </span>
@@ -3374,12 +3493,12 @@ export default function PamaservPage() {
                               </div>
                               
                               {relatorio.dadosServico.motivoChamado && (
-                                <p className="text-sm text-gray-600 mt-3 line-clamp-2">
+                                <p className="text-xs sm:text-sm text-gray-600 mt-3 line-clamp-2">
                                   {relatorio.dadosServico.motivoChamado}
                                 </p>
                               )}
                               
-                              <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+                              <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-3 text-xs text-gray-500">
                                 <span>ID: {relatorio.id}</span>
                                 <span>Criado: {relatorio.criadoEm.toLocaleDateString('pt-BR')}</span>
                                 <span>Atualizado: {relatorio.atualizadoEm.toLocaleDateString('pt-BR')}</span>
@@ -3416,14 +3535,6 @@ export default function PamaservPage() {
                                   <Copy className="w-4 h-4 mr-2" />
                                   Duplicar
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => exportarRelatorio(relatorio.id, 'pdf')}>
-                                  <Download className="w-4 h-4 mr-2" />
-                                  Exportar PDF
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => exportarRelatorio(relatorio.id, 'json')}>
-                                  <Share2 className="w-4 h-4 mr-2" />
-                                  Exportar JSON
-                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem 
                                   onClick={() => setRelatorioParaExcluir(relatorio.id)}
@@ -3441,14 +3552,14 @@ export default function PamaservPage() {
                   ))}
                   
                   {filteredRelatorios.length === 0 && (
-                    <div className="text-center py-16">
-                      <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Search className="w-12 h-12 text-gray-400" />
+                    <div className="text-center py-12 sm:py-16">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                        <Search className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" />
                       </div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                      <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
                         Nenhum relatório encontrado
                       </h3>
-                      <p className="text-gray-600 mb-8">
+                      <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">
                         Tente ajustar os filtros ou criar um novo relatório
                       </p>
                       <div className="flex flex-col sm:flex-row gap-4 justify-center">
